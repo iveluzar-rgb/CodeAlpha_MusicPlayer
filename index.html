@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Simple Music Player</title>
+
+  <!-- External CSS -->
+  <link rel="stylesheet" href="musiic.css">
+
+</head>
+<body>
+  <div class="player" id="player">
+
+    <div class="now">
+      <div class="art" id="cover">Album Art</div>
+
+      <div class="meta">
+        <div class="info">
+          <div class="title" id="title">Title</div>
+          <div class="artist" id="artist">Artist</div>
+        </div>
+        <div class="controls">
+          <button class="icon" id="prev" title="Previous">⏮️</button>
+          <button class="bigplay" id="play" title="Play/Pause">▶️</button>
+          <button class="icon" id="next" title="Next">⏭️</button>
+        </div>
+      </div>
+
+      <div class="progress-wrap">
+        <div class="time" id="current">0:00</div>
+        <input type="range" id="progress" min="0" max="100" value="0">
+        <div class="time" id="duration">0:00</div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+        <div class="flex">
+          <button class="icon" id="repeat" title="Autoplay/Repeat">🔁</button>
+          <label class="small muted" style="margin-left:6px">Autoplay</label>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <label class="small muted">Vol</label>
+          <input type="range" id="volume" min="0" max="1" step="0.01" value="0.8" style="width:140px">
+        </div>
+      </div>
+
+    </div>
+
+    <div class="side">
+      <div class="playlist-controls">
+        <div class="small">Playlist</div>
+        <div class="flex">
+          <button class="icon" id="shuffle" title="Shuffle">🔀</button>
+          <button class="icon" id="clear" title="Clear">🗑️</button>
+        </div>
+      </div>
+
+      <div class="playlist" id="playlist"></div>
+    </div>
+
+  </div>
+
+  <audio id="audio"></audio>
+
+  <script>
+    const tracks = [
+      {title:'Husan Tera', artist:'Karan Aujla', src:"Husan Tera.mp3"},
+      {title:'I think They Call This Love Cover', artist:'Elliot James Reay.', src:'I think They Call This Love Cover.mp3'},
+      {title:'Raanjhanaa', artist:'Jaswinder Singh and Shiraz Uppal', src:'Raanjhanaa.mp3'},
+      {title:'Tu Hain Toh Mein Hoon', artist:'Arijit Singh and Afsana Khan', src:'Tu Hain Toh Main Hoon.mp3'},
+      {title:'Sapphire', artist:'Ed Sheeran', src:'Sapphire.mp3'}
+    ];
+
+    const audio = document.getElementById('audio');
+    const playBtn = document.getElementById('play');
+    const prevBtn = document.getElementById('prev');
+    const nextBtn = document.getElementById('next');
+    const titleEl = document.getElementById('title');
+    const artistEl = document.getElementById('artist');
+    const coverEl = document.getElementById('cover');
+    const progress = document.getElementById('progress');
+    const currentEl = document.getElementById('current');
+    const durationEl = document.getElementById('duration');
+    const volumeEl = document.getElementById('volume');
+    const playlistEl = document.getElementById('playlist');
+    const repeatBtn = document.getElementById('repeat');
+    const shuffleBtn = document.getElementById('shuffle');
+    const clearBtn = document.getElementById('clear');
+
+    let idx = 0;
+    let isPlaying = false;
+    let autoplay = false;
+
+    function fmt(s){
+      if (!isFinite(s)) return '0:00';
+      const m = Math.floor(s/60);
+      const sec = Math.floor(s%60).toString().padStart(2,'0');
+      return `${m}:${sec}`;
+    }
+
+    function loadTrack(i){
+      const t = tracks[i];
+      audio.src = t.src;
+      titleEl.textContent = t.title;
+      artistEl.textContent = t.artist;
+      coverEl.textContent = t.title;
+      document.querySelectorAll('.track').forEach(el=>el.classList.remove('active'));
+      const active = document.querySelector(`.track[data-i='${i}']`);
+      if(active) active.classList.add('active');
+
+      currentEl.textContent = '0:00';
+      durationEl.textContent = '0:00';
+      progress.value = 0;
+    }
+
+    function play(){ audio.play(); isPlaying = true; playBtn.textContent='⏸️'; }
+    function pause(){ audio.pause(); isPlaying = false; playBtn.textContent='▶️'; }
+    function togglePlay(){ isPlaying ? pause() : play(); }
+
+    playBtn.addEventListener('click', togglePlay);
+
+    prevBtn.addEventListener('click', ()=>{
+      idx = (idx-1+tracks.length)%tracks.length;
+      loadTrack(idx);
+      play();
+    });
+
+    nextBtn.addEventListener('click', ()=>{
+      idx = (idx+1)%tracks.length;
+      loadTrack(idx);
+      play();
+    });
+
+    audio.addEventListener('timeupdate', ()=>{
+      if(audio.duration){
+        const p = (audio.currentTime/audio.duration)*100;
+        progress.value = p;
+        currentEl.textContent = fmt(audio.currentTime);
+      }
+    });
+
+    audio.addEventListener('loadedmetadata', ()=>{
+      durationEl.textContent = fmt(audio.duration);
+      if(autoplay) play();
+    });
+
+    audio.addEventListener('ended', ()=>{
+      if(autoplay){
+        idx = (idx+1)%tracks.length;
+        loadTrack(idx);
+        play();
+      } else {
+        pause();
+        audio.currentTime = 0;
+      }
+    });
+
+    progress.addEventListener('input', (e)=>{
+      if(!audio.duration) return;
+      const pct = e.target.value/100;
+      audio.currentTime = pct * audio.duration;
+    });
+
+    volumeEl.addEventListener('input', (e)=>{
+      audio.volume = e.target.value;
+    });
+
+    repeatBtn.addEventListener('click', ()=>{
+      autoplay = !autoplay;
+      repeatBtn.style.opacity = autoplay ? 1 : 0.5;
+    });
+
+    shuffleBtn.addEventListener('click', ()=>{
+      for(let i=tracks.length-1;i>0;i--){
+        const j=Math.floor(Math.random()*(i+1));
+        [tracks[i],tracks[j]]=[tracks[j],tracks[i]];
+      }
+      renderPlaylist();
+      idx = 0;
+      loadTrack(idx);
+    });
+
+    clearBtn.addEventListener('click', ()=>{
+      playlistEl.innerHTML = '';
+    });
+
+    function renderPlaylist(){
+      playlistEl.innerHTML='';
+      tracks.forEach((t,i)=>{
+        const row = document.createElement('div');
+        row.className = 'track';
+        row.dataset.i = i;
+
+        row.innerHTML = `
+          <div class="left">
+            <div class="num">${i+1}</div>
+            <div class="tinfo">
+              <div class="t">${t.title}</div>
+              <div class="a">${t.artist}</div>
+            </div>
+          </div>
+          <div class="dur small" data-src="${t.src}">--:--</div>
+        `;
+
+        row.addEventListener('click', ()=>{
+          idx = Number(row.dataset.i);
+          loadTrack(idx);
+          play();
+        });
+
+        playlistEl.appendChild(row);
+
+        const probe = new Audio();
+        probe.src = t.src;
+        probe.addEventListener('loadedmetadata', ()=>{
+          const d = probe.duration;
+          row.querySelector('.dur').textContent = fmt(d);
+          probe.remove();
+        });
+
+        probe.addEventListener('error', ()=>{
+          row.querySelector('.dur').textContent = '--:--';
+        });
+      });
+    }
+
+    renderPlaylist();
+    loadTrack(idx);
+    audio.volume = Number(volumeEl.value);
+  </script>
+</body>
+</html>
